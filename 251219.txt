@@ -1,0 +1,375 @@
+pointer
+  access 
+  objects(instances) in some heap
+  assets in some memory
+
+keep a pointer
+  track instances
+  AplayerController* PC = GetWorld()->GetPlayerController();
+    PC is now pointing to the same place in some memory
+    as the GetWorld()->GetPlayerController()
+    no duplication
+    no creation
+
+  semantics: look up where to find the object (memory address)
+  AActor* FocusedActor = GetFocusedInteractionActor();
+  if(FocusedActor) 
+  {
+    FocusedActor->Interact();
+  }
+    possibility of "a pointer is in fact null in many cases"
+    that possibility means the state of the game is already broken
+  semantics: not found
+    pointer points to nothing (no place in some memory)
+  
+  ===
+
+  UPROPERTY(VisibleAnywhere)
+  UCameraComponent* CameraComp; // -> UE5: ObjectPtr<T>
+
+constructor -> instantitation, spawning
+*distinction (why)
+  contructor-specific creation method
+    CreateDefaultSubObject<UCameraComponent>("CameraComp");
+  outside-constructor cretaion method
+    NewObject<T>();
+
+right tools for right tasks
+  for creating and spwaning Actors, use
+  GetWorld->SpawnActor<T>()
+
+===
+
+TObjectPtr<T>
+  replcae raw ponters like UCameraComponent*
+  for editor integration - in build, function identically to raw pointers
+
+  their place: member properties only
+    that is, keep using raw pointers in functions and short-lived scopes
+
+===
+
+*distinction
+  instances in the world in memory
+  assets which has been loaded to memory
+    in-memory representation of an asset on disk
+    that is, still an object, but not in the world by itself
+    texture, sound fx, mesh
+    LoadObject<UTexture2D>(...);
+    shared? owned?
+
+a pointer can reference either to actors or assets
+
+이 시스템에서 pointer가 가리킬 수 있는 대상의 카테고리
+  in-world instance, asset
+
+===
+
+UGameplayStatics::SpawnEmitterAttached(
+  CastingEffect, 
+  Character->GetMesh(),
+  HandSocketName,
+  FVector::ZeroVector,
+  FRotator::ZeroRotator,
+  EAttachLocation::SnapToTarget
+);
+
+Observation
+  6 arguments
+  A::B() could be mean either
+    1. a class A's static memeber function B
+    2. a namespace A's standalone function B
+  What could this construct mean? 
+  What is its structure and idea behind this syntax?
+  it relates... 
+    CastingEffect (a kind of particle system?)
+    meaning obscure "HandSocketName"
+    some math related entities FVector::ZeroVector, FRotator::ZeroRotator
+    and somewhat curious EAttachLocation::SnapToTarget
+  I can infer that...
+    a concept of attach implies establihment of depenedency between two 
+    EAttachLocation::SnapToTarget
+Research
+  UGameplayStatics
+    a library class using static methods class pattern 
+    providing static helper functions
+    providing globally accessible utilities (easy and handy!)
+  FVector, FRotator arguments
+    offset relative to the socket (identified the HandSocketName, of a mesh in this case)
+  Attach
+    typically related to parent-child relationship
+  Socket Concept
+    named attachment points on mesh - editable in mesh editor
+    e.g.
+    SkeletalMesh "Character"
+      Bone: "hand_1"
+        Socket: "weapon_socket"
+      Bone: "head"
+        Socket: "hat_socket"
+  
+===
+
+-> operator
+  semantics: try to access to a memory location with the type 
+    type's role
+      an interpreter of a string of raw binaries
+      an interface of a string of raw binaries
+Research
+  decompose into ... access pointed memory -> access sub-memory 
+    ptr->Member === (*ptr).Member
+    a kind of offset which is named
+
+===
+
+standalone functions
+  semanctics
+    independency, decouple
+      e.g. not belong to a specific UWorld
+    has a highly composable style
+  UGameplayStatics::PlaySoundAtLocation(
+    this, // world provided by the context (caller)
+    SoundOnStagger,
+    GetActorLocation()
+  );
+  compose: Sound & Location
+    sound from SoundOnStagger // may be a asset pointer?
+    location from GetActorLocation() // may be a member function?
+  question: what type can be passed to the first argument(this)?
+
+===
+
+semantics of const on a parameter X
+  in the context of this function, 
+  no change to the parameter X (whether referenced or copied)
+  a kind of "read-only" context provided for the function
+
+  analogy
+    a data sheet for an instance of the function 
+    a table for an instance of the function 
+    in this sense, a function is a kind of class, template, a general construct,
+    a function call is kind of one-time instantiation, specialization, realization
+
+Research
+  binding function
+    is like instantiating a function call with bound context (that is, arugments)
+    function name is just a pointer to a function
+    function pointer is just a pointer to a function
+    but function object is a combo of a pointer to a function + bound context (concrete arguments)
+  instantiation of function
+    allocation of a stack frame
+    parameters come to occupy slots in the stack frame 
+    (a structured memory layout, determined by a type)
+    and... lifecycle of function
+      general observation: 
+        if it is created, it will be destroyed
+        if it is allocated, it will be deallocated
+        so when I think about instantiation, I should think also about destruction
+        so.. when (an instance of) the function returns, the stack frame is deallocated
+
+Research II
+  tension between automatic lifecycle management and granular lifecycle control
+  mechanisms intervening the automatic lifecycle rule, providing granular control
+    weak pointer, UPROPERTY - interacts with GC lifecycle mechanism
+    cascade of destruction
+      e.g. when owner is destroyed, its component gets destroyed too.
+  Observation
+    gc builds on the stack-frame lifecycle mechanism,
+
+===
+Material
+  void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) 
+  {
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+    PlayerInputComponent->BindAxis("MoveForward", this, &ASCharacter::MoveForward);
+    PlayerInputComponent->BindAxis("MoveRight", this, &ASCharacter::MoveRight);
+  }
+Observation
+  Binding function
+    required mechanisms
+      an ability to refer to a function
+      solution: refer to a function by function's address... 
+      but why not just using function name as its address?
+  two kinds of Binding 
+    1. a method and an object of a compatible type
+    2. standalone function and its parameter
+  Qustion
+    heavy use of raw strings in the code...
+    is it standard or is it just a tutorial code?
+
+Research
+  c++ does not have super, because a class in c++ can have multiple super classes,
+  which introduces "which super" ambiguity problem
+  UE's Super typedef mitigates this
+
+  function pointer
+    case non-member function
+      void (*fptr1)() = FreeFunction; // decays to function pointer
+      void (*fptr2)() = &FreeFunction; // explicit address of 
+    case member function
+      void (MyClass::*fptr)() = &MyClass::Method;
+      member functions are not just address to codes 
+        they include additional information
+          a class they belong to
+        and &MyClass::Method is a special syntax that creates a pointer to a member function
+        which is a different type than a regular function pointer
+
+===
+"declaration reflects use"
+  int (*fptr) (int a) = &increment;
+  int x = fptr(5); // => automatically decay to (*fptr)(5);
+  int x2 = (*fptr)(5);
+
+  int (MyClass::*fptr2) (int a) = &MyClass::Method;
+  int y = obj.fptr2(6); // no - looks like calling member "fptr2"
+  int y2 = (obj.*fptr2)(6); // ok
+  int y3 = (pobj->*fptr2)(6); // ok
+  
+  int y4 = obj.*fptr(3, 4); // precedence hard to get right!
+
+"don't mirror usage in declaration, prioritize readability"
+
+escape hatches
+  std::function<void(MyClass&, int, float)> 
+  auto fptr2 = [](MyClass& obj, int a, float b) {
+    obj.Method(a, b);
+  }
+  auto fptr3 = std::mem_fn(&MyClass::Method);
+  fptr3(some_obj, 5, 3.14f);
+
+===
+many shapes of callable
+  void f(int) // free function
+  [](int){} // lambda
+    lambda type: a unique type for the lambda expression
+    struct __compiler_generated_name {
+      int y;
+      int operator()(int)const{}
+    };
+  class C { void g()(int) const } //member function
+
+  type erasure for callables
+  (normalization)
+
+  std::function<call-signature>
+  std::function<R(Args...)>
+    std::function<void(int)>
+
+  std::function 
+    debugging difficulty 
+    indirection
+
+member function pointer는 반쪽짜리 callable
+callable이 아니다
+대상객체 정보까지 더해져야 완전한 callable이 된다
+
+===
+
+GetWorldTimerManager().SetTimer(
+  FuzeTimerHandle,
+  this,
+  &ASBombActor::Explode,
+  MaxFuzeTime,
+  false
+);
+
+Observation
+  5 arguments
+  Manager pattern (Maybe a singleton)
+    maintains internal states
+  Handle often means a pointer or an id (like file descriptor)
+  this means a current object 
+  bool in this context often means a flag option
+
+  we can group this and &AsBombActor::Explode together
+    (Maybe UE favors this pattern rather than lambda)
+  TimerHandle may be used to cancel the timer later
+    an id for the scheduled timer instance
+  
+  possibly this reads as "call this.Explode() in MaxFuzeTime msec with option X false"
+  Question: 
+    what if I want to specify arguments for Explode? 
+    what if FuzeTimerHandle conflicts with other TimeHandle?
+
+Research
+  GetWorldTimerManager
+    not a singleton, per-world instance
+      Each UWorld has itw own TimerManager
+    tracks all active timers
+  Time units
+    Seconds in float
+  Handle
+    opaque identifier
+  Amendment
+    this.method() => this->method()
+    this means a pointer to a current object
+  UE Pattern
+    mordern base uses lambda
+    pre C++11 favors member function pointer with a target object
+  bool flag
+    Repeating timer(interval) or One-shot timer
+  
+  c.f. API design difference according to an assumption on a basic usage  
+    setTimeout assumes short-lived, function-scoped timer
+    UE timer assumes long-lived, object-scoped timer - that is, a state
+
+===
+technique
+forward declaration in header files
+  instead of including a full file 
+  benefit: reduced compile time, depenedencies between files
+  when: compiler doesn't need to know everything about the name
+    only the information that word is a class is needed
+  
+  class UParticleSystem; // forward declare the type
+                        // the word "UParticleSystem" is a class
+  UCLASS()
+  class ACTIONROGUELIKE_API ASCharacter : public ACharacter
+  {
+    GENERATED_BODY()
+
+    UParticleSystem* CastingEffect;
+    ...
+  }
+
+Research
+  all pointers are same size (8 bytes on 64 bit, 4 bytes on 32 bit system)
+    independent of the type they are pointing to
+    the size of a pointer itself
+    the size of a type that a pointer points to
+Question
+  why 64 bit system -> pointer size 8 bytes and 32 bit system -> 4 bytes?
+  32-bit system means
+    CPU has 32-bit address bus
+    CPU can address 2^32 different memory locations
+      => 4GB max RAM
+    Need 32-bit to represent any address
+
+Note I
+  include dependency
+    is transitive (contagious)
+    forms a kind of graph
+  a pointer stores a data, and that data is a memory address
+    a size of memory address(memory space) is determined by the size of CPU address bus 
+    exception: member function pointer
+      not a mere pointer
+      member function pointers carry extra information
+        class info, class offset, vtbl info, etc
+  pointer compression
+    JVM use 4-byte pointers if heap < 32 GB
+Note II
+  CPU has physical pins (address lines) that carry addresses to RAM
+    32 address lines -> 2^32 unique locations
+===
+
+typical categories of logic that is typical to game
+  movement
+
+logic for handling movement
+  own logic for handling movement -> Pawn (fly, car,..)
+  walking movement -> Character
+
+===
+
+distinction between Constructor and BeginPlay
+
+===
