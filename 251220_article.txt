@@ -1,0 +1,270 @@
+https://www.tomlooman.com/unreal-engine-cpp-guide/
+
+Material
+  Casting
+  APawn* MyPawn = GetPawn();
+  ASCharacter* MyCharacter = Cast<ASCharacter>(MyPawn);
+  if(MyCharacter) // Cast succeeded
+  {
+    MyCharacter->Respawn();
+  }
+  all C++ classes will be loaded into memory at startup
+  casting to base class can help reducing recompilation time
+    dependency graph
+      header dependencies 
+      implementation dependencies 
+    effect
+      cascading, transitive, contagious
+  where is this member first declared in the type hierarchy?
+    C1 <- C2 <- C3
+    X is first declared at C2
+
+Observation
+  Pattern: intervention to system, escape hatch 
+    intervening type system
+    tension between rigid and flexible
+    tension between automatic and controllable
+    a pressure valve between the extremes
+
+  mental model
+    v: T1 -> T2
+  reads
+    cast to T2
+  
+  all types in a program is loaded at the startup time
+  Question
+    if 10 processes of the same program are running
+    is program code shared across 10 processes?
+      -> Mostly Yes
+  
+  Question
+    why do we call virtual function call as polymorphism?
+      one shape of call -> many possible codes 
+        object's runtime type
+        dispatch mechanism
+
+  what is type?
+    an interpreter of binaries
+      a memory layout
+      a sort of high-level symbol table
+    interpret 0x100 with type T1, 
+    interpret 0x100, the same location with type T2 (T1 <- T2),
+    a lens, a window
+    casting swaps lens mid-stream (flow of type deduction)
+      binaries: substance
+
+  then why not always use the most specific type?
+    treat a group of types uniformly (T1 <- T2, T3, T4)
+      family
+    reduce "include" dependency among headers
+    reduce "include" dependency among implementations
+  Comparison
+    dynamic_cast<T> vs Cast<T>
+    dynamic_cast<T> C++ RTTI
+    Cast<> uses UE's reflection type info (UCLASS, IsA)
+
+===
+
+UE interface
+  oddity: you are not required to implement it 
+  reflection-aware contract layered on top of C++
+  two different systems
+    C++ inheritance system
+    UE reflection system: needs a UObject-derived type
+
+
+// UObject
+UINTERFACE(MinimalAPI) - identity
+class USGameplayInterface : public UInterface // U-prefix
+{
+  GENERATED_BODY()
+};
+
+// pure C++ interface - behavior
+class ACTIONROGUELIKE_API ISGameplayInterface // I-prefix
+{
+  GENERATED_BODY()
+
+  public:
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+    void Interact(APawn* InstigatorPawn);
+}
+
+---
+
+UCLASS()
+class ACTIONROGUELIKE_API ASItemChest : public AActor, public ISGameplayInterface // I-prefix here
+{
+  GENERATED_BODY()
+
+  void Interact_Implementation(APawn* InstigatorPawn);
+}
+
+if(MyActor->Implements<USGameplayInterface) // U-prefix here
+{
+}
+
+ISGameplayInterface::Execute_Interact(ObjectToCallOn, Params);
+
+--- 
+
+Observation
+  U-prefixed interface, I-prefixed interface
+
+Question
+  what does UINTERFACE(MinimalAPI) do?
+    UINTERFACE
+      register the USGameplayInterface to Unreal Header Tool (UHT)
+    MinimalAPI
+      build-system optimization
+
+  why do we need to specify USGameplayInterface?
+
+  what is ACTIONROGUELIKE_API marker?
+    attribute
+    __declspec(dllexport)
+    __declspec(dllimport)
+    module boundaries
+    link error, ODR violation at runtime
+
+Research
+  module 1
+    compiled binary unit
+    Windows-DLL, Linux-so, macOS-dylib
+    a process is composed of many modules
+    each module has its boundary
+      to manage symbol lookup
+      to avoid ambiguity and ODR violation
+  module 2 C++20 
+
+  __declspec
+    Microsoft compiler specific attribute
+    __declspec(dllexport)
+      this symbol should be visible to other module (=DLL)
+    __declspec(dllimport)
+      this symbol is defined in another module
+
+Research II
+  OS creates a process on a request to run an executable(program)
+    a process has
+      single virtual address space
+      single heap
+      many threads
+    but the process is not made from one file (compiled binary)
+      multiple binary images loaded into the process's address space
+      Game.exe, ActionRoguelike.dll, UnrealEditor-Core.dll,...
+      kernel32.dll, user32.dll, ntdll.dll
+      each of these is a module 
+
+  Physical Address 
+  owner: CPU, memory controller
+  what a physical address indexes: a cell in RAM
+    which RAM cell am I referring to?
+  
+  Virtual Address
+  owner: each process
+  what a virtual address indexes: an abstract coordinate system
+    virtual address -> page table, MMU -> physical address
+
+===
+Delegate (Event)
+  allow code to call functions when triggered.
+  Callbacks
+  bind/listen to a delegate
+  and be notified 
+  when an event occurred (when a condition becomes true)
+  <-> polling every Tick
+  ways of binding
+
+Multicast Dynamic (Event Dispatcher)
+Pattern: 1. declare 2. use
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+  FOnAttributeChanged, // delegate name
+  AACtor, // type
+  InstigatorActor, // variable name
+  USAttributeComponent, // type
+  OwningComp, // variable name
+  float, // type
+  NewValue, // variable name
+  float, // type
+  Delta // variable name
+)
+this macro supports
+  serialization, C++ static typing, UE Reflection
+model
+  Event: OnAttributeChanged
+  Payload: InstigatorActor, OwningComp, NewValue, Delta
+
+FOnAttributeChanged OnHealthChanged;
+
+OnHealthChanged.BroadCast(InstigatorActor, this, NewHealth, Delta);
+
+what problem is being solved?
+---
+
+if XYZ happens, who will respond to XYZ?
+the answer configured before an XYZ happens is used 
+  (XYZ, AA) // AA will respond to XYZ
+  (XYZ, BB) // BB will respond to XYZ
+  [AA, BB]
+
+delegate is given an information that XYZ happened from the XYZ event source
+XYZ happened. 
+  delegate looks at list [AA, BB] 
+  and knows [AA, BB] will respond to XYZ
+  delegate passes passed information to [AA, BB]
+so delegate 
+  keeps [AA, BB] list --- its internal state
+  passes the news to [AA, BB]   
+  * delegate does not watch the world
+  * XYZ event source watches the world and delegates XYZ event handling to delegate
+  * delegate is owned(=scoped) by XYZ event source
+
+---
+architecture
+  event source 
+    detects the event
+    decides when it happened
+
+    meta-decision
+      does not decide the response bahavior  
+      but decides how response responsibility is configured
+      (how responsibility is arranged)
+        that "how' decision is this:
+          delegates to interested responders 
+          responsibility for responding 
+          via delegate mechanism
+
+  the delegate (mechanism)
+    is not a direct responder itself
+    but holds the references to responders
+      that are added ahead of time
+    * confusing point
+      the name is delegate but it does not fulfill responsibility
+      maybe it should mean the act of delegate itself, 
+      not the one who is delegated a responsibility (the one who does the work on behalf of other)
+      
+  responders
+    fuilfill delegated responsibility
+---
+
+term pattern: dynamic vs static
+  cannot be modified after-on
+  can add, remove mid-way
+
+UFUNCTION()
+void OnHealthChanged(AActor*, USAttributeComponent*, float, float);
+
+void ASAICharacter::PostInitializaComponents() 
+{
+  Super::PostInitializeComponents();
+  AttributeComp->OnHealthChanged.AddDynamic(this, &ASAICharacter::OnHealthChanged);
+}
+
+---
+tip
+  never bind delegate in constructor
+  bind delegate in AActor::PostInitializeComponents or BeginPlay
+    delegates get serialized into Blueprint
+    so that still be called even the binding is removed by code later
+---
