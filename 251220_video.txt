@@ -1,15 +1,6 @@
-Hierarchy
-UObject > AActor > APawn, ACharacter 
-  BeginPlay comes from AACtor
-    gets called after the constructor is done
-    
-
-===
-
 Constructor 
   Contructor-only functions
     CreateDefaultSubobject
-      expects a type argument
 
 SpringArmComp = CreateDefaultSubobject<USpringArmComponent>("SpringArmComp"); // a name for editor 
 
@@ -24,10 +15,10 @@ pattern
 
 pattern
   1 instantiate components
-  2 set up components (link, attach,.. = building a hierarchy)
-    the hierarchy of components
+  2 set up components
+    building a hierarchy of components
 
-  instantiation alone does not get the work done, so
+  instantiation alone does not relate components, so
     SpringArmComp->SetupAttachment(RootComponent);
     CameraComp->SetupAttachment(SpringArmComp);
 
@@ -47,6 +38,121 @@ Property System
   UPROPERTY(Specifier)
   USpringArmComponent* SpringArmComp;
 
+===
+
+protocol implies communication
+  independent endpoints
+  a standard
+  normalizing layer
+
+signal implies pattern
+  <-> noise
+
+===
+
+physical keyboard (mechanical assembly)
+  keys are arranged in a row-column matrix
+
+  pressing a key closes a switch
+    electrically connects row wire i and column wire j
+
+keyboard controller
+  injects electrical energy into the matrix
+    the passive circuit is now observable for controller
+  perform matrix scan
+    drives one row line to HIGH
+    sample all column lines
+  infer per scan
+    if while row i is driven and column j is active
+    then switch at (i, j) is closed
+  *temporal filtering*
+    debounce stability - stable press, stable release
+    epistemic boundary
+  maps stable (i, j) positions to HID usage code
+  packs HID usage codes into an HID report 
+    typically report-on-change
+    a snapshot of which keys are currently down
+      not Key A pressed, Key A released
+      but Key A pressed, Key A is not pressed
+  send HID report 
+    when usb host controller requests to send
+    reactive, not proactive
+===
+USB things I
+Endpoint
+  a numbered slot that selects a piece of device logic defined by protocol
+  e.g. interrupt IN endpoint
+Transaction 
+  executed by the USB host controller
+Transfer
+  a logical operation requested by software
+    may consist of many transactions
+    USB host controller driver manages
+
+Analogy
+  bus transation: function call
+  direction OUT: argument direction (host -> device)
+  direction IN: return direction (host <- device)
+  DATA or NAK: return value\
+===
+USB host controller
+  integrated into the SoC, PCH, or CPU
+  has bus lines
+  executes USB transactions autonomously according to the transfer descriptors 
+  when a transfer completes, raises a CPU interrupt 
+
+USB host controller driver (HCD)
+  specific to (host controller type x OS)
+    e.g. xHCI driver on Windows
+  provide transfer descriptors to USB host controller
+  role: transactinal
+    handles CPU interrupts raised by the controller
+      forward completed transfer results to a class driver
+===
+USB things II
+USB standardizes how a device describes its HID report format
+not the report format itself
+
+so there must be a central point that normalize HID reports into a standard semantic representation
+
+HID usage codes are standardized
+HID reports are not standardized
+
+===
+HID class driver
+  OS specific, hardware-agnostic
+  parse HID report using HID report descriptor
+  normalize into HID-semantic units (usage:value pairs)
+  dispatch to the responsible higher-level class driver
+===
+Transport normalization layer
+===
+Keyboard class driver (kbdclass.sys)
+  OS specific, transport-agnostic
+  input: transport-abstracted keyboard representation
+  output: augmented keyboard input stream
+    time-ordered, lossless sequence
+  the enriched HID usage semantics with keyboard-specificity
+  press / release semantics
+    maintains previous state
+    and detect tranisition
+  device policy
+    auto-repeat, initial delay, repeat rate
+  e.g.
+    conceptually, Key X: MAKE
+    internally, Code 0x1E, Flags: MAKE
+===
+Window input subsystem
 
 
 ===
+Transport
+  USB - HID class driver
+  Bluetooth - HID class driver
+  PS/2 - PS/2 driver
+===
+which event wakes the USB/HID/keyboard path?
+===
+USB Keyboard (logical device)
+  not a physical thing
+  a logical identity defined by specification
