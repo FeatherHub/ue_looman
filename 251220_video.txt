@@ -1,0 +1,52 @@
+Hierarchy
+UObject > AActor > APawn, ACharacter 
+  BeginPlay comes from AACtor
+    gets called after the constructor is done
+    
+
+===
+
+Constructor 
+  Contructor-only functions
+    CreateDefaultSubobject
+      expects a type argument
+
+SpringArmComp = CreateDefaultSubobject<USpringArmComponent>("SpringArmComp"); // a name for editor 
+
+===
+
+pattern
+  engines files are always one folder deep
+  "GameFramework/SpringArmComponent.h"
+  "Camera/CameraComponent.h"
+
+===
+
+pattern
+  1 instantiate components
+  2 set up components (link, attach,.. = building a hierarchy)
+    the hierarchy of components
+
+  instantiation alone does not get the work done, so
+    SpringArmComp->SetupAttachment(RootComponent);
+    CameraComp->SetupAttachment(SpringArmComp);
+
+===
+
+SpringArmComp
+  collision check
+    the camera never sticks through a wall
+
+===
+
+Property System
+  mark up C++ codes
+  annotation emulated using macros
+  purpose: network boundary, editor access, memory management,
+
+  UPROPERTY(Specifier)
+  USpringArmComponent* SpringArmComp;
+
+
+
+===
