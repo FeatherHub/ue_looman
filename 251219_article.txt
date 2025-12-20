@@ -1,3 +1,5 @@
+https://www.tomlooman.com/unreal-engine-cpp-guide/
+
 pointer
   access 
   objects(instances) in some heap
