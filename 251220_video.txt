@@ -143,8 +143,31 @@ Keyboard class driver (kbdclass.sys)
     internally, Code 0x1E, Flags: MAKE
 ===
 Window input subsystem
+  global state
+    toggle keys: Caps Lock, Num Lock
+    modifier state: Shift, Ctrl, Alt
+  map scan code -> VK
+    apply keyboard layout
+    group physical keys into logical key
+      LShift, RShift -> Shift
+    generate key event
+      focus-aware
+      thread-routed
+      KEYDOWN, KEYUP
+    route to multiple consumers
+      
+===
+Application
+  three tiers of read API
+    VK (simplest API)
+    scan code (lower-level API)
 
-
+===
+Unreal
+  cross-OS
+  FKey - own normalization layer
+  engine policy
+  
 ===
 Transport
   USB - HID class driver
