@@ -1,0 +1,119 @@
+mesh
+  shape
+  location
+  hierarchy
+material
+  light
+  rough, emissive, specular
+texture
+  2d image
+  filter
+
+dissolve effect
+  texture as a mask
+  time
+
+material and material instance
+
+uv coord
+  u (x) horizontal, left -> right
+  v (y) vertical, top -> bottom
+
+// Header
+UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+void Explode();
+
+// Child Header 
+// *_Implementation (BlueprintNativeEvent marked)
+virtual void Explode_Implementation() override;
+
+---
+
+{
+  // check if at being "destroyed"
+  if(ensure(!IsPendingKill())) 
+  {
+    UGameplayStatics::SpawnEmitterAtLocation(
+      this,
+      impactVFX,
+      GetActorLocation(),
+      GetActorRotation(),
+    );
+
+    Destroy();
+  }
+}
+
+---
+
+void ASDashProj::BeginPlay() 
+{
+  Super::BeginPlay();
+  GetWorldTimeManager().SetTimer(
+    TimerHandle_DelayedDetonate,
+    this,
+    &ASProj::Explode,
+    DetonateDelay
+  );
+}
+
+---
+api design
+  GetWorldTimeManager returns a reference not a pointer
+
+assumption
+  timer manager is always available
+
+pattern
+  api communicates intention on the type system
+
+mechanism
+  returning a pointer
+    imply non-existence (nullptr)
+  returning a reference
+    ensure the existence
+    no null check needed
+---
+
+EffectComp->DeactivateImmediately();
+SetActorEnableCollision(false);
+AActor* ActorToTP = GetInstigator();
+
+---
+ActorToTP->TeleportTo(GetActorLoc(), ActorToTP->GetActorLoc(), false, false);
+AActor.TeleportTo
+  SetWorldLocationAndRotation wrapped
+---
+
+TSubclassOf<AActor> ClassToSpawn
+GetWorld()->SpawnActor<AActor>(ClassToSpawn, SpawnTM, SpawnParams);
+
+---
+
+FVector HandLoc = GetMesh()->GetSocketLocation("Muzzle_01");
+
+---
+
+GetWorld()->SweepSingleByObjectType(
+  FHitResult,
+  TraceStart: FVector { CameraComp->GetCompLoc() },
+  TraceEnd: FVector { CameraComp->GetCompLoc() + GetControlRot().Vector() * 5000 },
+  FQuat::Identity,
+  FCollisionObjectQueryParams { ObjectTypesToQuery: [ECC_WorldDynamic, ECC_WorldStatic, ECC_Pawn] },
+  FCollisionShape { Sphere(20.0f) },
+  FCollisionQueryParams { IgnoredActor: [this] } 
+);
+
+---
+
+collision
+  ignore, overlap, block
+  (visibility, camera) | (static, dynamic, pawn, body, vehicle, destructible)
+
+---
+
+Force
+  positive amount -> push
+  negative amount -> pull
+
+---
