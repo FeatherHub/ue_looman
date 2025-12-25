@@ -1,0 +1,105 @@
+ texture -> filter
+   noise
+     cloud
+  
+blueprint
+  feels like jotting on a note
+
+sound
+  cue, wav
+  spatialization
+    attenuation
+      inner att, outer att
+
+modular style
+  a cue file
+  an attenuation file
+
+  a cue file + an attenuation file
+
+  author separately
+    parallelism
+    e.g. developing an DamagePopup_Widget
+  mix and match
+    use things in progress (or to be changed)
+    without being broken
+
+monolithic style
+  cue and attenuation in a file
+
+map an SFX at each phase of a process
+  begin, flying, impact
+
+map an anim at each state of an object
+  alive, dead, air, run
+
+sound logic
+  modulator
+    pitch, volume
+  doppler
+  mixing
+
+goal: variety
+
+BP
+  (event) graph
+  anim graph
+
+===
+
+C++
+  UFUNCTION(BP_Callable)
+  bool IsAlive() const;
+
+  bool ASAttrComp::IsAlive() const
+  {
+    return Health > 0.0f;
+  }
+BP Editor
+  GetComponentByClass Node
+    SAttrComp
+  ->
+  IsAlive 
+
+===
+
+naming convention
+  class name: ASTargetDummy
+  file name: STargetDummy
+  var name: TargetDummy
+
+===
+
+UFUNCTION()
+void ASCharacter::OnHealthChanged(AActor* InstigActor, USAttrComp* OwningComp, float NewHealth, float Delta)
+{
+  // HP <= 0.0f and not a heal
+  if(NewHealth <= 0.0f && Delta <= 0.0f)
+  {
+    GetController();
+    DisableInput(PC);
+  }
+}
+
+===
+
+// After Constructor and Before BeginPlay
+UFUNCTION()
+virtual void ASCharacter::PostInitializeComponents() override
+{
+  Super::PostInitializeComponents();
+
+  AttrComp->OnHealthChanged.AddDynamic(this, &This::OnHealthChanged);
+}
+
+===
+
+Pattern
+  write a static value at a position
+  wire a value from other to the slot 
+    bind
+  
+  show hardwired static value "99" when health changed
+  show a damage value when health changed
+
+  various part of system
