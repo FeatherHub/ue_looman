@@ -1,0 +1,75 @@
+SoundCue
+  UAudioComponent
+  UGameplayStatics::PlaySoundAtLocation
+
+React on Event 
+  "Add HitFlash Material" on "Damage Received"
+  Trigger a Method on Event
+    callback
+
+AttributeComponent
+  Add a HealthMax SubAttribute
+
+wire a state to various parts of system
+  e.g. hp
+    UI
+    Event
+      transition logic
+      participate in other logic
+    Blueprint
+      inject default value
+
+manage assets in blueprint, not in c++ code
+  refer to assets by string in c++ code
+  vs
+  refer to assets via UI in blueprint
+
+  scenario
+    name of asset is changed
+    location of asset is moved
+    asset is deleted
+    typo in string literal
+
+things
+  UGameplayStatics
+    PlayWorldCameraShake
+    SpawnEmitterAttached
+
+interaction 
+  implies a kind of contact
+  with "interactable" other
+    predefined possibility is instantiated
+  elements of the definition
+    collide, overlap, block, 
+
+UE AI System
+  Navigation Mesh - Path Finding
+  Behavior Tree - Logic
+  Blackboard - Data
+  Environment Query 
+  PawnSensing & AIPerception
+  Gameplay Debugger, Visual Logger
+
+Behavior Tree
+core elements
+  Selector
+    pick one child node, from left to right (a || b || c)
+      evaluating the Decorator of a child
+
+  Sequence
+    run all children, from left to right 
+      cancel all sequence on any failure (a && b && c)
+
+  Task
+  Service, background task
+  Decorator, flow control
+
+
+
+
+
+
+
+
+
+    
