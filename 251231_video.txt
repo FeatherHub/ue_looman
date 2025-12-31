@@ -1,0 +1,170 @@
+Pattern
+  AI Character + AI Controller
+
+Pattern: folder
+  Public/AI/ZAICharacter.h
+  Public/AI/ZAIController.h
+  Private/AI/ZAICharacter.cpp
+  Private/AI/ZAIController.cpp
+
+Z.uproject
+{
+  Modules: [
+    {
+      "Name": "Z",
+      "AdditionalDependencies": [
+        "Engine",
+        "AIModule"
+      ]
+    }
+  ]
+}
+
+Pattern: C++ & BP
+BP -> ZAICharacter
+  Mesh - Skeletal Mesh 
+  Anim - Anim_BP - Anim_BP_Class
+  Material, Texture
+  Transform - World Axis
+
+Pattern: AI + NavMesh Volume
+
+Pattern: BT + BB
+  Asset -> AI -> BT, BB
+  BT -> BB
+  BB: Keys
+
+  BT.MoveTo -> BB.BBKey
+  
+Pattern: AIController code using BT asset
+
+  protected:
+    UPROPERTY(EditDefaultsOnly, Category = "AI")
+    UBehaviorTree* BT;
+
+  void AZAIController::BeginPlay()
+  {
+    Super::BeginPlay();
+    RunBehaviorTree(BT);
+  }
+
+Pattern
+  code exposes a member to BP editor
+  and BP editor manages an assignment to the member
+  (decouping asset-reference, solve hardcoded asset references in code)
+
+Pattern
+  BT uses a BB asset
+  AIController::GetBlackBoardComponent
+
+Pattern
+  BB::SetValueAsVector("KeyNameHardcoded", PlayerPawn->GetActorLocation());
+    "KeyNameHardcoded" -> defined in BB asset editor, not in C++ code editor
+    problem
+      typo
+      key renaming in BB asset silently breaks C++ call sites
+
+Pattern
+  USBTService_CheckAttackRange -> UBTService -> UBTAuxiliaryNode
+    TickNode, Interval
+  
+Pattern
+  use a feature 
+  add a corresponding module
+  .Build.cs
+    PublicDependencyModuleNames.AddRange(new string[] {
+      "Core", "CoreObject", "Engine", "InputCore", "AIModule", "GameplayTasks"
+    }); // folder names
+  
+Pattern
+  UE prefix is not part of the filename (U,A,I,E)
+  IGameplayTaskOwnerInterface -> GameplayTaskOwnerInterface
+
+Pattern
+  USBTService_CheckAttackRange::TickNode(UBTComponent& OwnerComp)
+  {
+    // the owner of this(BTService) is BT
+    // BT owns BB
+    UBBComp* BBComp = OwnerComp.GetBBComp();
+  }
+
+Pattern
+  AIController owns BT
+  BT owns BB, BTService
+
+  BT.GetAIOwner -> AAIController*
+
+Pattern
+  UPROPERTY
+  FBBKeySelector AttackRangeKey;
+  ---
+  BlackBoard->SetValueAsBool(AttackRangeKey.SelectedKeyName, bWithinRange);
+  ---
+  BT_BP asset -> bind AttackRangeKey to one of BB keys
+
+Pattern
+  create and expose a variable in C++ code editor
+  assign/adjust/bind values in BP editor
+    initial value, 
+
+Pattern
+  choose a base class
+  scan for what to override
+
+Pattern
+  use
+    A calls B
+    B exists independently of A
+    A does not determine B's lifecycle
+  own - lifecycle
+    A owns B
+    when A ends, B ends
+    the owner is responsible for creation and destruction of the owned
+      B should not outlive A
+      No other should end B
+
+--- --- ---
+Pattern
+  Actor owns MeshComp (runtime ownership)
+  Actor has Mesh as Component (MeshComponent)
+    MyActor->GetMesh() (Mesh instance)
+  Mesh asset defines and stores Sockets (schema)
+    MyMeshComp->GetSocketLocation("Muzzle_01");
+
+Pattern
+  Mesh asset
+  MeshComponent instance
+    holds a pointer to a Mesh asset (shared, immutable)
+    manages anim state
+
+--- --- ---
+
+Pattern: Batch Params
+  Set Spawn Location, Rotation(<-Vector<-LocationTo-LocationFrom)
+  Set Spawn Class, Spawn Params
+  Spawn
+    GetWorld()->SpawnActor<AActor>(ProjectileClass, SpawnLocation, SpwanRotation, SpwnParams)
+
+Pattern
+  Get a pointer as GenericClass type And Cast to SpecificClass type
+    // lookup a memory location by string key 
+    // the system has no information what specific type it is
+    BT.GetBBComp().GetValueAsObject("TargetActor"); 
+    // the programmer knows its specific type
+    Cast<AActor>
+    // cast can fail; nullptr, incompatible type
+    Check Cast  
+
+--- --- ---
+
+Pattern Side Effect and Functional Flow
+
+EBTNodeResult::Type BTTask_RangeAttack::ExecuteTask(Context) {
+  // get information from context
+  // invariants not held
+  // return EBTNodeResult::Failed
+
+  // configure parameter for SideEffect
+  // e.g. call GetWorld()->SpawnActor<..>(..) <- SideEffect
+  // return EBTNodeResult::Succeeded
+}
