@@ -1,0 +1,44 @@
+Pattern
+  solve the same problem
+  different API set
+  forming a layer 
+  from low-level set
+  to high-level set
+
+  e.g. PawnSensing
+
+Pattern
+  1. add component that has delegate
+  2. add a callback to the component's delegate
+
+  setup code
+    PawnSensingComp->OnSeePawn.AddDynamic(this, &This::OnSeePawn);
+
+  impl code
+    get the signiture information from PawnSensingComp::OnSeePawn
+    void ASAICharacter::OnSeePawn(APawn* Pawn) {}
+
+Question
+  void ASAICharacter::PostInitializeComponents() 
+  {
+    PawnSensingComp->OnSeePawn.AddDynamic(this, &ASAICharacter::OnSeePawn);
+    PawnSensingComp->OnSeePawn.AddDynamic(this, &this::OnSeePawn);
+  }
+  'this' is an prvalue pointer expression 
+  :: is an operator that works on either type or namespace
+  
+  &ASAICharacter::OnSeePawn -> forms a pointer-to-method, not bound
+
+  C++
+    auto cb = &ClassName::methodName;
+    (obj.*cb)();
+    (pobj->*cb)();
+  JS    
+    const cb = this.methodName.bind(this);
+    cb();
+  Java  
+    var cb = this::methodName; // bound already
+    cb();
+  C#    this.MethodName
+  Py    self.method_name
+  Ruby  method(:method_name)
